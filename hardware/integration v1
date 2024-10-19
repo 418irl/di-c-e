@@ -1,0 +1,179 @@
+#include <Wire.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+// URL of the API endpoint
+const char* apiUrl = "https://example.com/api/accelerometer"; // Replace with your actual API URL
+
+// MPU6050 instance
+Adafruit_MPU6050 mpu;
+
+// Network credentials
+const char* ssid = "Void"; // Wi-Fi SSID
+const char* password = "dododododo"; // Wi-Fi password
+
+// Stopwatch variables
+bool stopwatchRunning = false;
+unsigned long startTime = 0;
+unsigned long stopTime = 0;
+
+// Counter for invalid states
+int invalidStateCount = 0;
+
+// Time display variables
+unsigned long elapsedTime; // To store elapsed time in milliseconds
+unsigned long seconds;
+unsigned long minutes;
+
+void setup() {
+    Serial.begin(115200);
+    Wire.begin();
+
+    // Initialize the MPU6050
+    if (!mpu.begin()) {
+        Serial.println("Failed to find MPU6050 chip");
+        while (1) {
+            delay(10);
+        }
+    }
+
+    // Connect to Wi-Fi
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("");
+    Serial.println("WiFi connected.");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());  // Print the local IP address
+
+    // MPU6050 setup
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+}
+
+void loop() {
+    // Get new sensor events with the readings
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    // Print out the values
+    Serial.print("Acceleration X: ");
+    Serial.print(a.acceleration.x);
+    Serial.print(", Y: ");
+    Serial.print(a.acceleration.y);
+    Serial.print(", Z: ");
+    Serial.print(a.acceleration.z);
+    Serial.println(" m/s^2");
+
+    double ax = a.acceleration.x;
+    String f;
+
+    // Determine face and manage stopwatch
+    if (ax > 0.04 && ax < 0.5) {
+        Serial.println("face 1");
+        f = "face 1";
+        if (!stopwatchRunning) {
+            stopwatchRunning = true;
+            startTime = millis(); // Record start time
+            Serial.println("Stopwatch started at: " + String(startTime));
+        }
+    } 
+    else if (ax > -1.0 && ax < -0.05) {  
+        Serial.println("face 2");
+        f = "face 2";
+        if (!stopwatchRunning) {
+            stopwatchRunning = true;
+            startTime = millis(); // Record start time
+            Serial.println("Stopwatch started at: " + String(startTime));
+        } 
+    } 
+    else if (ax < -0.60 && ax > -1.1) {  
+        Serial.println("face 3");
+        f = "face 3";
+        if (!stopwatchRunning) {
+            stopwatchRunning = true;
+            startTime = millis(); // Record start time
+            Serial.println("Stopwatch started at: " + String(startTime));
+        } 
+    } 
+    else if (ax > 0.7 && ax < 1.3) {
+        Serial.println("face 4");
+        f = "face 4";
+        if (!stopwatchRunning) {
+            stopwatchRunning = true;
+            startTime = millis(); // Record start time
+            Serial.println("Stopwatch started at: " + String(startTime));
+        } 
+    } 
+    else if (ax > 1.6 && ax < 1.7) {
+        Serial.println("face 5");
+        f = "face 5";
+        if (stopwatchRunning) {
+            stopwatchRunning = false;
+            stopTime = millis(); // Record stop time
+            Serial.println("Stopwatch stopped at: " + String(stopTime));
+
+            // Calculate elapsed time
+            elapsedTime = stopTime - startTime; // Time taken in milliseconds
+            seconds = (elapsedTime / 1000) % 60; // Calculate seconds
+            minutes = (elapsedTime / 1000) / 60; // Calculate minutes
+        }
+    }
+    else if (ax > 2.0 || ax < -2.0) {
+        Serial.println("invalid 1");
+        f = "invalid 1";
+        invalidStateCount++; // Increment the counter for invalid states
+    }
+    else {
+        Serial.println("invalid 3");
+        f = "invalid 3";
+        invalidStateCount++; // Increment the counter for invalid states
+    }
+
+    // Print the number of invalid states
+    Serial.print("Invalid states reached: ");
+    Serial.println(invalidStateCount);
+
+    // Prepare JSON payload
+    String jsonPayload = String("{\"Mode\":{\"Activity\":\"") + f +
+                         "\",\"Time Taken\":\"" + String(minutes) + ":" + String(seconds) +
+                         "\",\"Start Time\":" + String(startTime) +
+                         ",\"Stop Time\":" + String(stopTime) + 
+                         ",\"Invalid States Count\":" + invalidStateCount + 
+                         "}}";
+
+    // Send the POST request
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http; // Create an HTTP client
+        http.begin(apiUrl); // Specify the URL
+        http.addHeader("Content-Type", "application/json"); // Specify content-type header
+
+        // Send the POST request
+        int httpResponseCode = http.POST(jsonPayload); // Send the request
+
+        // Check for the response code
+        if (httpResponseCode > 0) {
+            String response = http.getString(); // Get the response payload
+            Serial.print("Response code: ");
+            Serial.println(httpResponseCode); // Print response code
+            Serial.println("Response: " + response); // Print response payload
+        } else {
+            Serial.print("Error on sending POST: ");
+            Serial.println(httpResponseCode);
+        }
+
+        http.end(); // Close connection
+    } else {
+        Serial.println("WiFi not connected");
+    }
+
+    Serial.println("");  
+    delay(500);
+}
