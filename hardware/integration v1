@@ -5,14 +5,14 @@
 #include <HTTPClient.h>
 
 // URL of the API endpoint
-const char* apiUrl = "https://example.com/api/accelerometer"; // Replace with your actual API URL
+const char* apiUrl = "https://example.com/api/accelerometer"; 
 
 // MPU6050 instance
 Adafruit_MPU6050 mpu;
 
 // Network credentials
-const char* ssid = "Void"; // Wi-Fi SSID
-const char* password = "dododododo"; // Wi-Fi password
+const char* ssid = ""; // Wi-Fi SSID
+const char* password = ""; // Wi-Fi password
 
 // Stopwatch variables
 bool stopwatchRunning = false;
