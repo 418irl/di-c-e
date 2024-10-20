@@ -1,0 +1,60 @@
+# from flask import Flask,request, jsonify
+
+import firebase_admin
+from firebase_admin import credentials,firestore
+import streamlit as st
+import os
+import datetime
+import pandas as pd
+
+
+'''
+Database setup
+'''
+cwd=os.getcwd()
+complete_path=os.path.join(cwd,r"C:\Users\tinas\Downloads\activity-tracker-cube-firebase-adminsdk-ugbiu-22b7c88728.json")
+print(complete_path)
+if not firebase_admin._apps:
+    cred = credentials.Certificate(complete_path)
+    firebase_admin.initialize_app(cred)
+db=firestore.client()
+
+activities=["work","study","exercise","read"]
+
+
+'''
+Streamlit setup
+'''
+
+
+# Title for the Streamlit app
+st.title("POMORODO")
+
+# Text input for user name
+name = st.text_input("Enter your name", "")
+
+# Slider for selecting a number
+age = st.slider("Total duration", 0, 24, 7)
+
+# Button to submit
+if st.button("Submit"):
+    st.write(f"Hello, {name}! The total duration is {age}.")
+
+# Displaying a success message
+st.success("This is a simple Streamlit app!")
+
+def get_data():
+    docs=db.collection("activity_data").document("Mathew").collection("data").get()
+    data_dict=dict()
+    for doc in docs:
+        data_dict[doc.id] = doc.to_dict()
+    return pd.DataFrame(data_dict).transpose()
+
+doc=get_data()
+st.dataframe(doc)
+
+
+
+
+
+
